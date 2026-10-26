@@ -201,15 +201,20 @@ export function getCursorSizes(data, animated = false) {
   return [...sizes.values()].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
 }
 
-export async function convertCursor(data, animated, scales) {
+export async function convertCursor(data, animated, scales, onResult = () => {}) {
+  const fail = (reason, sizes = [], output = data) => {
+    const results = scales.map(scale => ({scale, sizes, status: "failed", reason}));
+    results.forEach(onResult);
+    return {data: output, results};
+  };
   let sizes;
   try { sizes = getCursorSizes(data, animated); }
-  catch (error) { return {data, results: scales.map(scale => ({scale, sizes: [], status: "failed", reason: error.message}))}; }
+  catch (error) { return fail(error.message); }
   const oversized = sizes.find(([width, height]) => Math.max(width, height) * 2 > 256);
   if (oversized) {
     const [width, height] = oversized;
     const reason = `Source ${width}x${height} becomes ${width * 2}x${height * 2} at 2x; output limit is 256x256`;
-    return {data: null, results: scales.map(scale => ({scale, sizes, status: "failed", reason}))};
+    return fail(reason, sizes, null);
   }
   const results = [], variants = [];
   for (const scale of scales) {
@@ -217,8 +222,9 @@ export async function convertCursor(data, animated, scales) {
     try { variants.push(await (animated ? upscaleAni : upscaleCur)(data, scale)); }
     catch (error) { result.status = error instanceof SizeLimitError ? "skipped" : "failed"; result.reason = error.message; }
     results.push(result);
+    onResult(result);
   }
   try { if (variants.length) data = (animated ? mergeAni : mergeCur)(data, variants); }
-  catch (error) { return {data: null, results: scales.map(scale => ({scale, sizes, status: "failed", reason: error.message}))}; }
+  catch (error) { return fail(error.message, sizes, null); }
   return {data, results};
 }

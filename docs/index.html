@@ -1,70 +1,79 @@
 <!doctype html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cursor Upscale</title>
-<style>
-  :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; }
-  body { max-width: 680px; margin: 64px auto; padding: 0 20px; }
-  h1 { font-size: 1.5rem; margin-bottom: 8px; }
-  p { margin: 8px 0 24px; }
-  .muted { color: light-dark(#606060, #aaa); }
-  fieldset { border: 0; padding: 0; margin: 24px 0; }
-  legend { font-weight: 600; margin-bottom: 8px; }
-  .options, .buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
-  label { cursor: pointer; }
-  input[type="number"] { width: 64px; padding: 6px; font: inherit; }
-  button, .download { font: inherit; padding: 9px 16px; border: 1px solid #888; border-radius: 6px; cursor: pointer; background: transparent; color: inherit; }
-  button:hover, .download:hover { background: light-dark(#eee, #333); }
-  :focus-visible { outline: 2px solid #4888df; outline-offset: 3px; }
-  #drop { padding: 28px 20px; border: 1px dashed #888; border-radius: 8px; margin: 24px 0; }
-  #drop.dragging { border-color: #4888df; background: light-dark(#edf4ff, #202e40); }
-  #drop p { margin-bottom: 16px; }
-  .buttons { gap: 10px; }
-  #status { min-height: 24px; overflow-wrap: anywhere; }
-  .download { display: inline-block; margin: 8px 0 20px; }
-  [hidden] { display: none !important; }
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: .875rem; white-space: nowrap; margin-bottom: 16px; }
-  th, td { padding: 8px; text-align: right; border-bottom: 1px solid light-dark(#ddd, #444); }
-  th:first-child, td:first-child { text-align: left; }
-  details { margin-top: 16px; }
-  summary { cursor: pointer; }
-  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
-  @media (max-width: 480px) { body { margin-top: 28px; } }
-</style>
-<main>
-  <h1>Cursor Upscale</h1>
-  <p class="muted">Enlarge pixel cursors. Files stay in your browser.</p>
-  <fieldset id="settings">
-    <legend>Scale</legend>
-    <div class="options">
-      <label><input type="radio" name="mode" value="single" checked> <input id="scale" type="number" min="2" step="1" value="2" aria-label="Scale factor"> ×</label>
-      <label><input type="radio" name="mode" value="all"> All (2×, 5×, 10×)</label>
-    </div>
-  </fieldset>
-  <div id="drop">
-    <p>Drop CUR / ANI files here, or choose files to start.</p>
-    <div class="buttons">
-      <button id="choose-files" type="button">Choose files</button>
-      <button id="choose-folder" type="button">Choose folder</button>
-    </div>
-    <input id="files" type="file" accept=".cur,.ani,.inf" multiple hidden>
-    <input id="folder" type="file" webkitdirectory multiple hidden>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f6f8">
+  <title>Cursor Upscale</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link id="webfont" rel="stylesheet" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>
+        <svg class="brand-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="10" fill="currentColor"/><path d="m10 8 13 9-6 1-3 6-4-16Z" fill="white" stroke="white" stroke-linejoin="round"/></svg>
+        Cursor Upscale
+      </h1>
+      <select id="language" aria-label="Language">
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="zh">简体中文</option>
+      </select>
+    </header>
+    <main class="workspace">
+      <section class="input-panel" aria-label="Input">
+        <fieldset id="settings">
+          <legend data-i18n="scale">Scale</legend>
+          <div class="segments" id="segments">
+            <span class="segment-thumb" aria-hidden="true"></span>
+            <label><input type="radio" name="scale-mode" value="2" checked><span>2×</span></label>
+            <label><input type="radio" name="scale-mode" value="5"><span>5×</span></label>
+            <label><input type="radio" name="scale-mode" value="10"><span>10×</span></label>
+            <label><input type="radio" name="scale-mode" value="all"><span data-i18n="all">All</span></label>
+            <label><input type="radio" name="scale-mode" value="custom"><span data-i18n="custom">Custom</span></label>
+          </div>
+          <div class="custom-scale" id="custom-scale" inert>
+            <label for="scale" data-i18n="customScale">Scale factor</label>
+            <div class="number-field"><input id="scale" type="number" min="2" step="1" value="3" inputmode="numeric" disabled><span aria-hidden="true">×</span></div>
+          </div>
+        </fieldset>
+        <div class="drop-area" id="drop">
+          <button class="drop-target" id="choose-files" type="button">
+            <span class="upload-icon" aria-hidden="true">
+              <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21V6m-6 6 6-6 6 6M7 20v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg>
+            </span>
+            <span class="drop-label" data-i18n="drop">Drop files</span>
+            <span class="file-types" aria-hidden="true">CUR · ANI</span>
+          </button>
+          <button class="folder-button" id="choose-folder" type="button" data-i18n="chooseFolder">Choose folder</button>
+          <input id="files" type="file" accept=".cur,.ani,.inf" multiple hidden>
+          <input id="folder" type="file" webkitdirectory multiple hidden>
+        </div>
+        <p class="rejection" id="rejection" role="status" aria-live="polite"></p>
+      </section>
+      <section class="output-panel" aria-labelledby="terminal-title">
+        <div class="output-toolbar">
+          <h2 id="terminal-title" data-i18n="terminal">Terminal</h2>
+          <button class="download" id="download" type="button" disabled>
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3v9m-3-3 3 3 3-3M4 13v3h12v-3"/></svg>
+            <span data-i18n="download">Download</span>
+          </button>
+        </div>
+        <div class="terminal" id="terminal" data-state="ready">
+          <div class="terminal-chrome"><span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span><span>cursor-upscale</span><span id="progress"></span></div>
+          <div class="terminal-body" id="terminal-body" tabindex="0">
+            <div class="command"><span class="prompt" aria-hidden="true">❯</span><span id="command">cursor-upscale --scale 2</span></div>
+            <div class="terminal-log" id="log" role="log" aria-live="polite" aria-atomic="false"></div>
+            <span class="caret" aria-hidden="true"></span>
+          </div>
+          <div class="terminal-footer"><span class="state-dot" aria-hidden="true"></span><span id="status" data-i18n="ready">Ready</span><span id="output-name"></span></div>
+        </div>
+      </section>
+    </main>
   </div>
-  <p class="muted">Each cursor keeps its original image and adds the enlarged sizes. The limit is 256 × 256 px; files too large for 2× are rejected.</p>
-  <p id="status" role="status" aria-live="polite"></p>
-  <a id="download" class="download" hidden>Download</a>
-  <section id="results" aria-label="Conversion results" hidden>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Scale</th><th>Source</th><th>Target</th><th>Converted</th><th>Skipped</th><th>Failed</th></tr></thead>
-        <tbody id="counts"></tbody>
-      </table>
-    </div>
-    <pre id="reasons"></pre>
-    <details><summary>File details</summary><pre id="details"></pre></details>
-  </section>
-</main>
-<script type="module" src="app.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
 </html>
