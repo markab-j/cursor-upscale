@@ -1,10 +1,24 @@
-import {convertCursor} from "./cursor.js";
+import {convertCursor, getCursorSizes} from "./cursor.js";
 import {createZip} from "./zip.js";
 
-self.onmessage = async ({data: {files, scales, folderName}}) => {
+self.onmessage = async ({data: {action, files, scales, folderName}}) => {
   try {
     const cursors = files.filter(({file}) => /\.(cur|ani)$/i.test(file.name));
     if (!cursors.length) throw new Error("No CUR or ANI files found.");
+    if (action === "inspect") {
+      const metadata = [];
+      for (const {file, path} of cursors) {
+        try {
+          const data = new Uint8Array(await file.arrayBuffer());
+          metadata.push({path, sizes: getCursorSizes(data, /\.ani$/i.test(file.name))});
+        } catch (error) {
+          metadata.push({path, sizes: [], error: error.message});
+        }
+        self.postMessage({type: "inspecting", count: metadata.length, total: cursors.length});
+      }
+      self.postMessage({type: "inspected", metadata});
+      return;
+    }
     const archive = Boolean(folderName) || files.length > 1;
     const root = `${folderName || "cursors"}_upscaled`;
     const outputs = [], results = [];

@@ -12,48 +12,56 @@
 <body>
   <div class="app">
     <header class="header">
-      <h1>
-        <svg class="brand-icon" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="10" fill="currentColor"/><path d="m10 8 13 9-6 1-3 6-4-16Z" fill="white" stroke="white" stroke-linejoin="round"/></svg>
-        Cursor Upscale
-      </h1>
-      <select id="language" aria-label="Language">
-        <option value="ko">한국어</option>
-        <option value="en">English</option>
-        <option value="ja">日本語</option>
-        <option value="zh">简体中文</option>
-      </select>
+      <h1>Cursor Upscale</h1>
+      <div class="header-actions">
+        <button class="icon-button" id="theme-toggle" type="button" aria-label="Switch to dark theme" aria-pressed="false">
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z"/></svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+        </button>
+        <div class="language-picker" id="language-picker">
+          <button class="icon-button" id="language-toggle" type="button" aria-label="Language" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></svg>
+          </button>
+          <div class="language-menu" id="language-menu" role="menu" aria-labelledby="language-toggle" hidden>
+            <button type="button" role="menuitemradio" data-language="ko" aria-checked="false" lang="ko">한국어</button>
+            <button type="button" role="menuitemradio" data-language="en" aria-checked="true" lang="en">English</button>
+            <button type="button" role="menuitemradio" data-language="ja" aria-checked="false" lang="ja">日本語</button>
+            <button type="button" role="menuitemradio" data-language="zh" aria-checked="false" lang="zh-CN">简体中文</button>
+          </div>
+        </div>
+      </div>
     </header>
     <main class="workspace">
       <section class="input-panel" aria-label="Input">
-        <fieldset id="settings">
-          <legend data-i18n="scale">Scale</legend>
-          <div class="segments" id="segments">
-            <span class="segment-thumb" aria-hidden="true"></span>
-            <label><input type="radio" name="scale-mode" value="2" checked><span>2×</span></label>
-            <label><input type="radio" name="scale-mode" value="5"><span>5×</span></label>
-            <label><input type="radio" name="scale-mode" value="10"><span>10×</span></label>
-            <label><input type="radio" name="scale-mode" value="all"><span data-i18n="all">All</span></label>
-            <label><input type="radio" name="scale-mode" value="custom"><span data-i18n="custom">Custom</span></label>
-          </div>
-          <div class="custom-scale" id="custom-scale" inert>
-            <label for="scale" data-i18n="customScale">Scale factor</label>
-            <div class="number-field"><input id="scale" type="number" min="2" step="1" value="3" inputmode="numeric" disabled><span aria-hidden="true">×</span></div>
-          </div>
+        <fieldset class="scale-settings" id="settings">
+          <label for="scale" data-i18n="scale">Scale</label>
+          <div class="number-field"><input id="scale" type="number" min="2" step="1" value="2" inputmode="numeric"><span aria-hidden="true">×</span></div>
         </fieldset>
         <div class="drop-area" id="drop">
           <button class="drop-target" id="choose-files" type="button">
             <span class="upload-icon" aria-hidden="true">
               <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21V6m-6 6 6-6 6 6M7 20v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg>
             </span>
-            <span class="drop-label" data-i18n="drop">Drop files</span>
-            <span class="file-types" aria-hidden="true">CUR · ANI</span>
+            <span class="drop-label" id="selection-name" data-i18n="drop">Drop files</span>
+            <span class="selection-count" id="selection-count">CUR · ANI</span>
+            <span class="selection-types" id="selection-types"></span>
           </button>
           <button class="folder-button" id="choose-folder" type="button" data-i18n="chooseFolder">Choose folder</button>
           <input id="files" type="file" accept=".cur,.ani,.inf" multiple hidden>
           <input id="folder" type="file" webkitdirectory multiple hidden>
         </div>
+        <div class="file-feedback" id="file-feedback" aria-live="polite">
+          <div class="feedback-counts"><span class="eligible" id="eligible"></span><span class="ineligible" id="ineligible"></span></div>
+          <div class="size-preview" id="size-preview"></div>
+        </div>
         <p class="rejection" id="rejection" role="status" aria-live="polite"></p>
       </section>
+      <div class="convert-panel">
+        <button class="convert-button" id="convert" type="button" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+          <span data-i18n="convert">Convert</span>
+        </button>
+      </div>
       <section class="output-panel" aria-labelledby="terminal-title">
         <div class="output-toolbar">
           <h2 id="terminal-title" data-i18n="terminal">Terminal</h2>

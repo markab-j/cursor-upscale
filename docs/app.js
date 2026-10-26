@@ -2,27 +2,56 @@ import {language, setLanguage, translate, errorText} from "./i18n.js";
 
 const find = id => document.getElementById(id);
 const download = find("download"), terminal = find("terminal"), log = find("log");
-const modes = [...document.querySelectorAll('[name="scale-mode"]')];
 const sizesText = (sizes, scale = 1) => sizes.map(([w, h]) => `${w * scale}×${h * scale}`).join(", ") || "?";
 const records = [];
-let worker, busy = false, downloadUrl, outputName, started = 0, rejectionKey = "";
+let worker, phase = "idle", downloadUrl, outputName, started = 0;
+let files = [], folderName = "", metadata = [], selectionInfo;
+let rejectionKey = "", rejectionValues = {};
 
-function selectedScales() {
-  const mode = modes.find(input => input.checked).value;
-  return mode === "all" ? [2, 5, 10] : [mode === "custom" ? Number(find("scale").value) : Number(mode)];
+function currentScale() {
+  return Number(find("scale").value);
 }
 
-function updateScale() {
-  const index = modes.findIndex(input => input.checked);
-  const custom = modes[index].value === "custom";
-  find("segments").style.setProperty("--active", index);
-  find("custom-scale").classList.toggle("visible", custom);
-  find("custom-scale").inert = !custom;
-  find("scale").disabled = !custom || busy;
-  if (!busy) {
-    const scales = selectedScales();
-    find("command").textContent = `cursor-upscale ${scales.length > 1 ? "--all" : `--scale ${scales[0]}`}`;
+function eligible(item, scale) {
+  return !item.error && item.sizes.every(([w, h]) => Math.max(w, h) * 2 <= 256 && Math.max(w, h) * scale <= 256);
+}
+
+function renderSelection() {
+  find("selection-name").textContent = selectionInfo ? selectionInfo.name || translate("selectedFiles") : translate("drop");
+  find("selection-name").title = selectionInfo?.name || "";
+  find("selection-count").textContent = selectionInfo ? translate("selectedCount", {count: selectionInfo.total}) : "CUR · ANI";
+  find("selection-types").textContent = selectionInfo ? `${selectionInfo.cur} CUR · ${selectionInfo.ani} ANI · ${selectionInfo.inf} INF` : "";
+}
+
+function updateFeedback() {
+  renderSelection();
+  const scale = currentScale(), valid = Number.isInteger(scale) && scale >= 2;
+  find("command").textContent = `cursor-upscale --scale ${valid ? scale : "?"}`;
+  const available = metadata.filter(item => eligible(item, scale)).length;
+  find("convert").disabled = phase !== "idle" || !valid || !available;
+  find("eligible").textContent = valid && metadata.length ? translate("canGenerate", {count: available}) : "";
+  find("ineligible").textContent = valid && metadata.length ? translate("cannotGenerate", {count: metadata.length - available}) : "";
+  find("ineligible").classList.toggle("has-errors", metadata.length > available);
+  find("size-preview").replaceChildren();
+  if (phase === "inspect") { find("size-preview").textContent = translate("reading"); return; }
+  if (phase === "convert") return;
+  if (!valid) { showRejection("invalidScale"); return; }
+  const groups = new Map();
+  for (const item of metadata) {
+    const key = JSON.stringify(item.sizes);
+    if (!groups.has(key)) groups.set(key, {sizes: item.sizes, count: 0});
+    groups.get(key).count++;
   }
+  for (const {sizes, count} of groups.values()) {
+    const row = document.createElement("div");
+    row.textContent = `${sizesText(sizes)} → ${sizesText(sizes, scale)} · ${count}`;
+    find("size-preview").append(row);
+  }
+  const unreadable = metadata.filter(item => item.error).length;
+  const tooLarge = metadata.length - available - unreadable;
+  if (unreadable) showRejection("unreadableFiles", {count: unreadable});
+  else if (tooLarge) showRejection("cannotFit", {count: tooLarge, scale});
+  else showRejection();
 }
 
 function setState(state) {
@@ -30,18 +59,19 @@ function setState(state) {
   find("status").textContent = translate(state);
 }
 
-function showRejection(key = "") {
+function showRejection(key = "", values = {}) {
   rejectionKey = key;
-  find("rejection").textContent = key ? translate(key) : "";
+  rejectionValues = values;
+  find("rejection").textContent = key ? translate(key, values) : "";
 }
 
-function setBusy(value) {
-  busy = value;
-  find("settings").disabled = value;
-  find("choose-files").disabled = value;
-  find("choose-folder").disabled = value;
-  find("drop").setAttribute("aria-busy", value);
-  find("scale").disabled = value || modes.find(input => input.checked).value !== "custom";
+function setPhase(value) {
+  phase = value;
+  find("settings").disabled = value === "convert";
+  find("choose-files").disabled = value !== "idle";
+  find("choose-folder").disabled = value !== "idle";
+  find("drop").setAttribute("aria-busy", value !== "idle");
+  updateFeedback();
 }
 
 function renderLine(record) {
@@ -81,7 +111,7 @@ function appendLog(record) {
 function finishWorker() {
   worker?.terminate();
   worker = null;
-  setBusy(false);
+  setPhase("idle");
 }
 
 function conversionFailed(key, reason) {
@@ -123,12 +153,7 @@ function conversionDone(message) {
   download.disabled = false;
 }
 
-function convert(selected, folderName = "") {
-  if (busy) { showRejection("busy"); return; }
-  const scales = selectedScales();
-  if (scales.some(scale => !Number.isInteger(scale) || scale < 2)) { showRejection("invalidScale"); return; }
-  const files = selected.filter(({file}) => /\.(cur|ani|inf)$/i.test(file.name));
-  if (!files.some(({file}) => /\.(cur|ani)$/i.test(file.name))) { showRejection("noCursors"); return; }
+function resetOutput() {
   if (downloadUrl) URL.revokeObjectURL(downloadUrl);
   downloadUrl = null;
   download.disabled = true;
@@ -138,8 +163,16 @@ function convert(selected, folderName = "") {
   records.length = 0;
   log.replaceChildren();
   started = performance.now();
+}
+
+function convert() {
+  if (phase !== "idle") return;
+  const scale = currentScale();
+  if (!Number.isInteger(scale) || scale < 2) { showRejection("invalidScale"); return; }
+  if (!metadata.some(item => eligible(item, scale))) { updateFeedback(); return; }
+  resetOutput();
   showRejection();
-  setBusy(true);
+  setPhase("convert");
   setState("running");
   try {
     worker = new Worker(new URL("worker.js", import.meta.url), {type: "module"});
@@ -151,9 +184,47 @@ function convert(selected, folderName = "") {
       } else if (message.type === "error") conversionFailed("partialFailure", message.text);
       else if (message.type === "done") conversionDone(message);
     };
-    worker.postMessage({files, scales, folderName});
+    worker.postMessage({action: "convert", files, scales: [scale], folderName});
   } catch (error) {
     conversionFailed("workerError", error.message);
+  }
+}
+
+function selectFiles(selected, root = "") {
+  if (phase !== "idle") { showRejection("busy"); return; }
+  resetOutput();
+  folderName = root;
+  files = selected.filter(({file}) => /\.(cur|ani|inf)$/i.test(file.name));
+  metadata = [];
+  selectionInfo = {name: root || (selected.length === 1 ? selected[0].file.name : ""), total: selected.length,
+    cur: files.filter(({file}) => /\.cur$/i.test(file.name)).length,
+    ani: files.filter(({file}) => /\.ani$/i.test(file.name)).length,
+    inf: files.filter(({file}) => /\.inf$/i.test(file.name)).length};
+  renderSelection();
+  if (!selectionInfo.cur && !selectionInfo.ani) {
+    updateFeedback();
+    showRejection("noCursors");
+    setState("ready");
+    return;
+  }
+  setPhase("inspect");
+  setState("reading");
+  try {
+    worker = new Worker(new URL("worker.js", import.meta.url), {type: "module"});
+    worker.onerror = () => conversionFailed("readError");
+    worker.onmessage = ({data: message}) => {
+      if (message.type === "inspecting") {
+        find("progress").textContent = `${message.count} / ${message.total}`;
+      } else if (message.type === "inspected") {
+        metadata = message.metadata;
+        finishWorker();
+        setState("ready");
+        for (const item of metadata.filter(item => item.error)) appendLog({event: "error", reason: `${item.path}: ${item.error}`});
+      } else if (message.type === "error") conversionFailed("readError", message.text);
+    };
+    worker.postMessage({action: "inspect", files});
+  } catch (error) {
+    conversionFailed("readError", error.message);
   }
 }
 
@@ -173,22 +244,26 @@ for (const kind of ["files", "folder"]) {
   find(`choose-${kind}`).onclick = () => find(kind).click();
   find(kind).onchange = event => {
     const files = [...event.target.files].map(file => ({file, path: file.webkitRelativePath || file.name}));
-    if (files.length) convert(files, kind === "folder" ? files[0].path.split("/")[0] : "");
+    if (files.length) selectFiles(files, kind === "folder" ? files[0].path.split("/")[0] : "");
     event.target.value = "";
   };
 }
-for (const input of modes) input.onchange = () => {
-  updateScale();
-  if (input.value === "custom") find("scale").focus();
+find("scale").oninput = () => {
+  if (phase === "idle") { resetOutput(); setState("ready"); }
+  updateFeedback();
 };
-find("scale").oninput = updateScale;
-find("language").onchange = event => {
-  setLanguage(event.target.value);
+find("convert").onclick = convert;
+
+function changeLanguage(value) {
+  setLanguage(value);
   setState(terminal.dataset.state);
-  showRejection(rejectionKey);
+  const key = rejectionKey, values = rejectionValues;
+  updateFeedback();
+  showRejection(key, values);
+  updateTheme();
   log.replaceChildren(...records.map(renderLine));
   find("terminal-body").scrollTop = find("terminal-body").scrollHeight;
-};
+}
 download.onclick = () => {
   const link = document.createElement("a");
   link.href = downloadUrl;
@@ -201,26 +276,70 @@ download.onclick = () => {
 const drop = find("drop");
 document.ondragover = event => event.preventDefault();
 document.ondrop = event => event.preventDefault();
-drop.ondragover = event => { event.preventDefault(); if (!busy) drop.classList.add("dragging"); };
+drop.ondragover = event => { event.preventDefault(); if (phase === "idle") drop.classList.add("dragging"); };
 drop.ondragleave = event => { if (!drop.contains(event.relatedTarget)) drop.classList.remove("dragging"); };
 drop.ondrop = async event => {
   event.preventDefault();
   drop.classList.remove("dragging");
-  if (busy) { showRejection("busy"); return; }
+  if (phase !== "idle") { showRejection("busy"); return; }
   // Capture entries while the drop event still grants access to the data store.
   const entries = [...event.dataTransfer.items].map(item => item.webkitGetAsEntry?.()).filter(Boolean);
   const fallback = [...event.dataTransfer.files].map(file => ({file, path: file.name}));
-  setBusy(true);
+  setPhase("inspect");
   try {
     const files = entries.length ? (await Promise.all(entries.map(entry => readEntry(entry)))).flat() : fallback;
     const folderName = entries.length === 1 && entries[0].isDirectory ? entries[0].name : "";
-    setBusy(false);
-    convert(files, folderName);
+    setPhase("idle");
+    selectFiles(files, folderName);
   } catch {
-    setBusy(false);
+    setPhase("idle");
     showRejection("readError");
   }
 };
 
+const languageToggle = find("language-toggle"), languageMenu = find("language-menu");
+const languageOptions = [...languageMenu.querySelectorAll("button")];
+function closeLanguageMenu(restoreFocus = false) {
+  languageMenu.hidden = true;
+  languageToggle.setAttribute("aria-expanded", "false");
+  if (restoreFocus) languageToggle.focus();
+}
+function openLanguageMenu() {
+  languageMenu.hidden = false;
+  languageToggle.setAttribute("aria-expanded", "true");
+  languageOptions.find(option => option.dataset.language === language).focus();
+}
+languageToggle.onclick = () => languageMenu.hidden ? openLanguageMenu() : closeLanguageMenu();
+languageToggle.onkeydown = event => {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); openLanguageMenu(); }
+};
+for (const option of languageOptions) option.onclick = () => { changeLanguage(option.dataset.language); closeLanguageMenu(true); };
+languageMenu.onkeydown = event => {
+  const index = languageOptions.indexOf(document.activeElement);
+  if (event.key === "Escape") { event.preventDefault(); closeLanguageMenu(true); }
+  if (event.key === "Tab") closeLanguageMenu();
+  if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+    event.preventDefault();
+    const next = event.key === "Home" ? 0 : event.key === "End" ? languageOptions.length - 1
+      : (index + (event.key === "ArrowDown" ? 1 : -1) + languageOptions.length) % languageOptions.length;
+    languageOptions[next].focus();
+  }
+};
+document.addEventListener("pointerdown", event => { if (!find("language-picker").contains(event.target)) closeLanguageMenu(); });
+find("language-picker").addEventListener("focusout", event => { if (!find("language-picker").contains(event.relatedTarget)) closeLanguageMenu(); });
+
+document.documentElement.dataset.theme = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+function updateTheme() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  find("theme-toggle").setAttribute("aria-pressed", dark);
+  find("theme-toggle").setAttribute("aria-label", translate(dark ? "lightTheme" : "darkTheme"));
+  find("theme-toggle").title = translate(dark ? "lightTheme" : "darkTheme");
+  document.querySelector('meta[name="theme-color"]').content = dark ? "#101319" : "#f5f6f8";
+}
+find("theme-toggle").onclick = () => {
+  document.documentElement.dataset.theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  updateTheme();
+};
 setLanguage(language);
-updateScale();
+updateTheme();
+updateFeedback();

@@ -1,6 +1,10 @@
 const messages = {
   en: {
-    scale: "Scale", all: "All", custom: "Custom", customScale: "Scale factor",
+    scale: "Scale", convert: "Convert", reading: "Reading files…",
+    selectedFiles: "Selected files", selectedCount: "{count} files selected",
+    canGenerate: "{count} can be generated", cannotGenerate: "{count} cannot be generated",
+    cannotFit: "{count} files exceed 256 × 256 px at {scale}×.", unreadableFiles: "Could not read {count} cursor files.",
+    darkTheme: "Switch to dark theme", lightTheme: "Switch to light theme",
     drop: "Drop files", chooseFolder: "Choose folder", download: "Download", terminal: "Terminal",
     ready: "Ready", running: "Processing", done: "Finished", failed: "Failed", language: "Language", input: "Input",
     invalidScale: "Enter an integer of at least 2.", noCursors: "Choose CUR / ANI files or a folder containing them.",
@@ -17,7 +21,11 @@ const messages = {
     invalidCursor: "Not a valid Windows CUR file.", invalidAni: "Not a valid Windows ANI file.",
   },
   ko: {
-    scale: "배율", all: "전체", custom: "직접 입력", customScale: "확대 배율",
+    scale: "배율", convert: "변환", reading: "파일 읽는 중…",
+    selectedFiles: "선택한 파일", selectedCount: "파일 {count}개 선택됨",
+    canGenerate: "생성 가능 {count}개", cannotGenerate: "생성 불가 {count}개",
+    cannotFit: "{count}개 파일이 {scale}배에서 256 × 256px을 초과합니다.", unreadableFiles: "커서 파일 {count}개를 읽을 수 없습니다.",
+    darkTheme: "어두운 테마로 변경", lightTheme: "밝은 테마로 변경",
     drop: "파일 놓기", chooseFolder: "폴더 선택", download: "다운로드", terminal: "터미널",
     ready: "준비됨", running: "처리 중", done: "완료", failed: "실패", language: "언어", input: "입력",
     invalidScale: "2 이상의 정수를 입력해 주세요.", noCursors: "CUR / ANI 파일이나 해당 파일이 있는 폴더를 선택해 주세요.",
@@ -34,7 +42,11 @@ const messages = {
     invalidCursor: "올바른 Windows CUR 파일이 아닙니다.", invalidAni: "올바른 Windows ANI 파일이 아닙니다.",
   },
   ja: {
-    scale: "倍率", all: "すべて", custom: "カスタム", customScale: "拡大倍率",
+    scale: "倍率", convert: "変換", reading: "ファイルを読み込み中…",
+    selectedFiles: "選択したファイル", selectedCount: "{count}ファイルを選択",
+    canGenerate: "生成可能 {count}件", cannotGenerate: "生成不可 {count}件",
+    cannotFit: "{count}ファイルが{scale}倍で256 × 256pxを超えます。", unreadableFiles: "{count}個のカーソルファイルを読み込めません。",
+    darkTheme: "ダークテーマに切り替え", lightTheme: "ライトテーマに切り替え",
     drop: "ファイルをドロップ", chooseFolder: "フォルダを選択", download: "ダウンロード", terminal: "ターミナル",
     ready: "準備完了", running: "処理中", done: "完了", failed: "失敗", language: "言語", input: "入力",
     invalidScale: "2以上の整数を入力してください。", noCursors: "CUR / ANIファイル、またはそれらを含むフォルダを選択してください。",
@@ -51,7 +63,11 @@ const messages = {
     invalidCursor: "有効なWindows CURファイルではありません。", invalidAni: "有効なWindows ANIファイルではありません。",
   },
   zh: {
-    scale: "倍率", all: "全部", custom: "自定义", customScale: "放大倍率",
+    scale: "倍率", convert: "转换", reading: "正在读取文件…",
+    selectedFiles: "已选文件", selectedCount: "已选择{count}个文件",
+    canGenerate: "可生成{count}个", cannotGenerate: "无法生成{count}个",
+    cannotFit: "{count}个文件放大{scale}倍后超过256 × 256像素。", unreadableFiles: "无法读取{count}个光标文件。",
+    darkTheme: "切换到深色主题", lightTheme: "切换到浅色主题",
     drop: "拖放文件", chooseFolder: "选择文件夹", download: "下载", terminal: "终端",
     ready: "就绪", running: "处理中", done: "已完成", failed: "失败", language: "语言", input: "输入",
     invalidScale: "请输入不小于2的整数。", noCursors: "请选择CUR / ANI文件或包含这些文件的文件夹。",
@@ -79,9 +95,12 @@ export function setLanguage(value) {
   language = value;
   document.documentElement.lang = value === "zh" ? "zh-CN" : value;
   document.querySelectorAll("[data-i18n]").forEach(node => { node.textContent = translate(node.dataset.i18n); });
-  document.getElementById("language").setAttribute("aria-label", translate("language"));
+  document.getElementById("language-toggle").setAttribute("aria-label", translate("language"));
+  document.getElementById("language-toggle").title = translate("language");
+  document.querySelectorAll("[data-language]").forEach(option => {
+    option.setAttribute("aria-checked", option.dataset.language === value);
+  });
   document.querySelector(".input-panel").setAttribute("aria-label", translate("input"));
-  document.getElementById("language").value = value;
   const font = value === "ja" ? "pretendard-jp" : "pretendard";
   document.getElementById("webfont").href = `https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/${font}-dynamic-subset.min.css`;
 }
