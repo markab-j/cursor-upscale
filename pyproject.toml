@@ -1,0 +1,9 @@
+[project]
+name = "cursor-upscale"
+version = "0.1.0"
+description = "Enlarge Windows CUR and ANI cursors with nearest-neighbor scaling."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "Pillow>=10.0",
+]
