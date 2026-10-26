@@ -1,6 +1,6 @@
 # Cursor Upscale
 
-[한국어](README.md) | English
+[한국어](README.md) | English | [Demo](https://markab-j.github.io/cursor-upscale/)
 
 Enlarge `.cur` and `.ani` pixel-art cursors while keeping pixel edges crisp.
 
