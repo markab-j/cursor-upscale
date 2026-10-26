@@ -4,6 +4,18 @@
 
 픽셀 모양을 유지하면서 `.cur`, `.ani` 커서를 확대합니다.
 
+## 웹 데모
+
+배율을 고르고 파일이나 폴더를 선택하면 바로 변환해 내려받습니다. 단일 파일은 CUR/ANI로, 폴더나 여러 파일은 ZIP으로 저장합니다. 파일은 브라우저 안에서만 처리합니다.
+
+로컬에서 열려면 아래 명령을 실행한 뒤 <http://localhost:8000>에 접속하세요.
+
+```sh
+python3 -m http.server 8000 --directory docs
+```
+
+GitHub Pages에서는 게시 대상을 `main` 브랜치의 `/docs` 폴더로 지정하면 됩니다.
+
 ## 설치
 
 Python 3.10 이상과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 설치한 뒤, 프로젝트 폴더에서 실행하세요.

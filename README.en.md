@@ -4,6 +4,18 @@
 
 Enlarge `.cur` and `.ani` pixel-art cursors while keeping pixel edges crisp.
 
+## Web demo
+
+Choose a scale, then select files or a folder to convert and download. A single file downloads as CUR/ANI; folders and multiple files download as ZIP. Files are processed entirely in your browser.
+
+To run locally, start the server and open <http://localhost:8000>.
+
+```sh
+python3 -m http.server 8000 --directory docs
+```
+
+For GitHub Pages, set the publishing source to the `main` branch and the `/docs` folder.
+
 ## Setup
 
 Install Python 3.10 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/), then run this from the project folder:
