@@ -1,6 +1,6 @@
 # Cursor Upscale
 
-한국어 | [English](README.en.md)
+한국어 | [English](README.en.md) | [Demo](https://markab-j.github.io/cursor-upscale/)
 
 픽셀 모양을 유지하면서 `.cur`, `.ani` 커서를 확대합니다.
 
